@@ -30,8 +30,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Inicializamos vistas
         timeTextView = findViewById(R.id.time)
         lossMessageTextView = findViewById(R.id.lossMessage)
+        val restartButton = findViewById<Button>(R.id.restartButton)
+
+        // Lógica del botón de reinicio
+        restartButton.setOnClickListener {
+            resetGame()
+        }
 
         val spinnerId = findViewById<Spinner>(R.id.spinId)
         val gridLayout = findViewById<GridLayout>(R.id.gridLayout)
@@ -262,4 +269,13 @@ class MainActivity : ComponentActivity() {
         running = false
         handler.removeCallbacksAndMessages(null)
     }
+
+    private fun resetGame() {
+        resetTimer()
+        lossMessageTextView.visibility = View.GONE
+        firstClick = true
+        val gridLayout = findViewById<GridLayout>(R.id.gridLayout)
+        drawGrid(gridLayout, boardSize) // Vuelve a dibujar el tablero
+    }
+
 }
