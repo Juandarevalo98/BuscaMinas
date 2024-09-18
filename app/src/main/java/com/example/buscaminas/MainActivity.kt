@@ -15,199 +15,201 @@ import kotlin.random.Random
 import android.view.Gravity
 
 class MainActivity : ComponentActivity() {
-    private lateinit var timeTextView: TextView
-    private lateinit var lossMessageTextView: TextView
-    private var seconds = 0
-    private var running = false
-    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var tiempoTextView: TextView // Vista que muestra el temporizador
+    private lateinit var mensajeDerrotaTextView: TextView // Vista que muestra el mensaje de derrota
+    private var segundos = 0 // Contador de segundos para el temporizador
+    private var corriendo = false // Indica si el temporizador está corriendo
+    private val manejador = Handler(Looper.getMainLooper()) // Manejador para controlar la ejecución del temporizador
 
-    private var firstClick = true
-    private var boardSize = 8
-    private var mineCount = 10
-    private var minePositions = mutableSetOf<Pair<Int, Int>>()
+    private var primerClick = true // Indica si es el primer clic del usuario en el tablero
+    private var tamanoTablero = 8 // Tamaño del tablero (número de filas y columnas)
+    private var cantidadMinas = 10 // Número de minas en el tablero
+    private var posicionesMinas = mutableSetOf<Pair<Int, Int>>() // Conjunto que guarda las posiciones de las minas
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Inicializamos vistas
-        timeTextView = findViewById(R.id.time)
-        lossMessageTextView = findViewById(R.id.lossMessage)
-        val restartButton = findViewById<Button>(R.id.restartButton)
+        // Inicializamos las vistas del temporizador y el mensaje de derrota
+        tiempoTextView = findViewById(R.id.time)
+        mensajeDerrotaTextView = findViewById(R.id.lossMessage)
+        val botonReiniciar = findViewById<Button>(R.id.restartButton)
 
-        // Lógica del botón de reinicio
-        restartButton.setOnClickListener {
-            resetGame()
+        // Configuración del botón de reinicio
+        botonReiniciar.setOnClickListener {
+            reiniciarJuego()
         }
 
-        val spinnerId = findViewById<Spinner>(R.id.spinId)
+        val spinnerDificultad = findViewById<Spinner>(R.id.spinId)
         val gridLayout = findViewById<GridLayout>(R.id.gridLayout)
 
+        // Opciones de dificultad del juego
         val dificultad = arrayOf("Facil", "Medio", "Dificil")
         val arrayAdp = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, dificultad)
-        spinnerId.adapter = arrayAdp
+        spinnerDificultad.adapter = arrayAdp
 
-        spinnerId.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        spinnerDificultad.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                resetTimer()
-                startTimer()
+                reiniciarTemporizador()
+                iniciarTemporizador()
 
+                // Ajustar el tamaño del tablero y la cantidad de minas según la dificultad seleccionada
                 when (dificultad[position]) {
                     "Facil" -> {
-                        boardSize = 8
-                        mineCount = 10
+                        tamanoTablero = 8
+                        cantidadMinas = 10
                     }
                     "Medio" -> {
-                        boardSize = 16
-                        mineCount = 40
+                        tamanoTablero = 16
+                        cantidadMinas = 40
                     }
                     "Dificil" -> {
-                        boardSize = 24
-                        mineCount = 99
+                        tamanoTablero = 24
+                        cantidadMinas = 99
                     }
                 }
 
-                firstClick = true
-                drawGrid(gridLayout, boardSize)
-                lossMessageTextView.visibility = View.GONE
+                primerClick = true // Reiniciar la bandera del primer clic
+                dibujarTablero(gridLayout, tamanoTablero)
+                mensajeDerrotaTextView.visibility = View.GONE
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        startTimer()
+        iniciarTemporizador() // Iniciar el temporizador desde el comienzo
     }
 
-    private fun drawGrid(gridLayout: GridLayout, size: Int) {
+    // Método que dibuja el tablero con el tamaño seleccionado
+    private fun dibujarTablero(gridLayout: GridLayout, tamano: Int) {
         gridLayout.removeAllViews()
-        gridLayout.columnCount = size
-        gridLayout.rowCount = size
+        gridLayout.columnCount = tamano
+        gridLayout.rowCount = tamano
 
         gridLayout.post {
-            val gridWidth = gridLayout.width
-            val gridHeight = gridLayout.height
-            val buttonSize = Math.min(gridWidth, gridHeight) / size
+            val anchoTablero = gridLayout.width
+            val altoTablero = gridLayout.height
+            val tamanoBoton = Math.min(anchoTablero, altoTablero) / tamano
 
-            for (i in 0 until size) {
-                for (j in 0 until size) {
-                    val button = Button(this)
-                    button.setBackgroundResource(R.drawable.button_border)
+            for (i in 0 until tamano) {
+                for (j in 0 until tamano) {
+                    val boton = Button(this)
+                    boton.setBackgroundResource(R.drawable.button_border)
 
-                    // Ajuste dinámico del tamaño del texto
-                    val textSize = when (size) {
+                    // Ajustar el tamaño del texto del botón según la dificultad
+                    val tamanoTexto = when (tamano) {
                         8 -> 24f // Fácil
                         16 -> 18f // Medio
                         24 -> 14f // Difícil
                         else -> 20f
                     }
-                    button.textSize = textSize
+                    boton.textSize = tamanoTexto
 
-                    // Eliminar el padding para que el texto ocupe todo el espacio
-                    button.setPadding(0, 0, 0, 0)
+                    // Eliminar el padding para que el texto ocupe todo el botón
+                    boton.setPadding(0, 0, 0, 0)
+                    boton.gravity = Gravity.CENTER // Centrar el texto en el botón
+                    boton.minHeight = 0
+                    boton.minimumHeight = 0
+                    boton.minWidth = 0
+                    boton.minimumWidth = 0
 
-                    // Aseguramos que el texto esté centrado
-                    button.gravity = Gravity.CENTER
+                    // Color del texto
+                    boton.setTextColor(resources.getColor(R.color.black))
 
-                    // Ajustar el tamaño del texto para que ocupe todo el botón
-                    button.minHeight = 0
-                    button.minimumHeight = 0
-                    button.minWidth = 0
-                    button.minimumWidth = 0
-
-                    // Establecer color negro para mejor contraste
-                    button.setTextColor(resources.getColor(R.color.black))
-
-                    // Configuración de layoutParams para ajustar el tamaño de las celdas
-                    button.layoutParams = GridLayout.LayoutParams().apply {
-                        width = buttonSize
-                        height = buttonSize
+                    // Parámetros de layout para ajustar el tamaño del botón
+                    boton.layoutParams = GridLayout.LayoutParams().apply {
+                        width = tamanoBoton
+                        height = tamanoBoton
                         columnSpec = GridLayout.spec(j)
                         rowSpec = GridLayout.spec(i)
                     }
 
-                    // Asignar listener para voltear la celda
-                    button.setOnClickListener {
-                        if (firstClick) {
-                            firstClick = false
-                            generateMines(size, mineCount, i, j)
+                    // Lógica para voltear las celdas cuando el usuario hace clic
+                    boton.setOnClickListener {
+                        if (primerClick) {
+                            primerClick = false
+                            generarMinas(tamano, cantidadMinas, i, j)
                         }
-                        flipCell(button, i, j, gridLayout)
+                        voltearCelda(boton, i, j, gridLayout)
                     }
 
-                    gridLayout.addView(button)
+                    gridLayout.addView(boton) // Añadir el botón al tablero
                 }
             }
         }
     }
 
+    // Generar posiciones aleatorias para las minas, evitando la celda del primer clic
+    private fun generarMinas(tamano: Int, cantidadMinas: Int, filaClicada: Int, columnaClicada: Int) {
+        posicionesMinas.clear()
+        while (posicionesMinas.size < cantidadMinas) {
+            val fila = Random.nextInt(tamano)
+            val columna = Random.nextInt(tamano)
 
-    private fun generateMines(size: Int, mineCount: Int, clickedRow: Int, clickedCol: Int) {
-        minePositions.clear()
-        while (minePositions.size < mineCount) {
-            val row = Random.nextInt(size)
-            val col = Random.nextInt(size)
-
-            if (row != clickedRow || col != clickedCol) {
-                minePositions.add(Pair(row, col))
+            if (fila != filaClicada || columna != columnaClicada) {
+                posicionesMinas.add(Pair(fila, columna))
             }
         }
     }
 
-    private fun countAdjacentMines(row: Int, col: Int, size: Int): Int {
-        var count = 0
+    // Contar el número de minas adyacentes a una celda
+    private fun contarMinasAdyacentes(fila: Int, columna: Int, tamano: Int): Int {
+        var cuenta = 0
         for (i in -1..1) {
             for (j in -1..1) {
-                val newRow = row + i
-                val newCol = col + j
-                if (newRow in 0 until size && newCol in 0 until size && minePositions.contains(Pair(newRow, newCol))) {
-                    count++
+                val nuevaFila = fila + i
+                val nuevaColumna = columna + j
+                if (nuevaFila in 0 until tamano && nuevaColumna in 0 until tamano && posicionesMinas.contains(Pair(nuevaFila, nuevaColumna))) {
+                    cuenta++
                 }
             }
         }
-        return count
+        return cuenta
     }
 
-    private fun flipCell(button: Button, row: Int, col: Int, gridLayout: GridLayout) {
-        if (minePositions.contains(Pair(row, col))) {
-            button.text = "💣"
-            button.setTextColor(android.graphics.Color.RED)
-            button.setBackgroundColor(android.graphics.Color.YELLOW)
-            gameOver(gridLayout)
+    // Voltear una celda al hacer clic en ella
+    private fun voltearCelda(boton: Button, fila: Int, columna: Int, gridLayout: GridLayout) {
+        if (posicionesMinas.contains(Pair(fila, columna))) {
+            boton.text = "💣"
+            boton.setTextColor(android.graphics.Color.RED)
+            boton.setBackgroundColor(android.graphics.Color.YELLOW)
+            finDelJuego(gridLayout)
         } else {
-            val mineCount = countAdjacentMines(row, col, boardSize)
+            val minasAdyacentes = contarMinasAdyacentes(fila, columna, tamanoTablero)
 
-            if (mineCount > 0) {
-                button.text = mineCount.toString()
-                button.setTextColor(android.graphics.Color.BLACK)
+            if (minasAdyacentes > 0) {
+                boton.text = minasAdyacentes.toString()
+                boton.setTextColor(android.graphics.Color.BLACK)
             } else {
-                button.text = ""
-                expandEmptyCells(row, col, gridLayout)
+                boton.text = ""
+                expandirCeldasVacias(fila, columna, gridLayout)
             }
 
-            button.setBackgroundColor(android.graphics.Color.WHITE)
-            button.isEnabled = false
+            boton.setBackgroundColor(android.graphics.Color.WHITE)
+            boton.isEnabled = false
         }
     }
 
-    private fun expandEmptyCells(row: Int, col: Int, gridLayout: GridLayout) {
+    // Expande las celdas vacías cuando no hay minas cercanas
+    private fun expandirCeldasVacias(fila: Int, columna: Int, gridLayout: GridLayout) {
         for (i in -1..1) {
             for (j in -1..1) {
-                val newRow = row + i
-                val newCol = col + j
-                if (newRow in 0 until boardSize && newCol in 0 until boardSize) {
-                    val button = gridLayout.getChildAt(newRow * boardSize + newCol) as Button
-                    if (button.isEnabled) {
-                        val mineCount = countAdjacentMines(newRow, newCol, boardSize)
-                        if (mineCount == 0) {
-                            button.text = ""
-                            button.setBackgroundColor(android.graphics.Color.WHITE)
-                            button.isEnabled = false
-                            expandEmptyCells(newRow, newCol, gridLayout)
+                val nuevaFila = fila + i
+                val nuevaColumna = columna + j
+                if (nuevaFila in 0 until tamanoTablero && nuevaColumna in 0 until tamanoTablero) {
+                    val boton = gridLayout.getChildAt(nuevaFila * tamanoTablero + nuevaColumna) as Button
+                    if (boton.isEnabled) {
+                        val minasAdyacentes = contarMinasAdyacentes(nuevaFila, nuevaColumna, tamanoTablero)
+                        if (minasAdyacentes == 0) {
+                            boton.text = ""
+                            boton.setBackgroundColor(android.graphics.Color.WHITE)
+                            boton.isEnabled = false
+                            expandirCeldasVacias(nuevaFila, nuevaColumna, gridLayout)
                         } else {
-                            button.text = mineCount.toString()
-                            button.setTextColor(android.graphics.Color.BLACK)
-                            button.setBackgroundColor(android.graphics.Color.WHITE)
-                            button.isEnabled = false
+                            boton.text = minasAdyacentes.toString()
+                            boton.setTextColor(android.graphics.Color.BLACK)
+                            boton.setBackgroundColor(android.graphics.Color.WHITE)
+                            boton.isEnabled = false
                         }
                     }
                 }
@@ -215,67 +217,55 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun gameOver(gridLayout: GridLayout) {
-        running = false
-        lossMessageTextView.visibility = View.VISIBLE
-        lossMessageTextView.bringToFront()
-        lossMessageTextView.animate()
-            .alpha(1f)
-            .scaleX(1.5f)
-            .scaleY(1.5f)
-            .setDuration(500)
-            .start()
+    // Maneja el fin del juego, deshabilitando todas las celdas
+    private fun finDelJuego(gridLayout: GridLayout) {
+        corriendo = false
+        mensajeDerrotaTextView.visibility = View.VISIBLE
+        mensajeDerrotaTextView.bringToFront()
+        mensajeDerrotaTextView.animate().alpha(1.0f).duration = 500 // Animación para mostrar el mensaje de derrota
 
         for (i in 0 until gridLayout.childCount) {
-            val child = gridLayout.getChildAt(i)
-            if (child is Button) {
-                child.isEnabled = false
+            val boton = gridLayout.getChildAt(i) as Button
+            boton.isEnabled = false
+        }
+    }
+
+    // Reinicia el juego cuando el usuario pulsa el botón de reinicio
+    private fun reiniciarJuego() {
+        primerClick = true
+        mensajeDerrotaTextView.visibility = View.GONE
+
+        val gridLayout = findViewById<GridLayout>(R.id.gridLayout)
+        dibujarTablero(gridLayout, tamanoTablero)
+
+        reiniciarTemporizador()
+        iniciarTemporizador()
+    }
+
+    // Inicia el temporizador del juego
+    private fun iniciarTemporizador() {
+        corriendo = true
+        manejador.postDelayed(actualizarTemporizador, 1000)
+    }
+
+    // Actualiza el temporizador
+    private val actualizarTemporizador = object : Runnable {
+        override fun run() {
+            if (corriendo) {
+                segundos++
+                val minutos = segundos / 60
+                val segundosRestantes = segundos % 60
+                tiempoTextView.text = String.format("⏳ %02d:%02d", minutos, segundosRestantes)
+                manejador.postDelayed(this, 1000)
             }
         }
     }
 
-    private fun startTimer() {
-        running = true
-        handler.post(object : Runnable {
-            override fun run() {
-                if (running) {
-                    val minutes = seconds / 60
-                    val secs = seconds % 60
-                    val time = String.format("⏳ %02d:%02d", minutes, secs)
-                    timeTextView.text = time
-                    seconds++
-                    handler.postDelayed(this, 1000)
-                }
-            }
-        })
+    // Reinicia el temporizador
+    private fun reiniciarTemporizador() {
+        segundos = 0
+        tiempoTextView.text = "00:00"
+        corriendo = false
+        manejador.removeCallbacks(actualizarTemporizador)
     }
-
-    private fun resetTimer() {
-        running = false
-        handler.removeCallbacksAndMessages(null)
-        seconds = 0
-        updateTimerText()
-    }
-
-    private fun updateTimerText() {
-        val minutes = seconds / 60
-        val secs = seconds % 60
-        val time = String.format("%02d:%02d", minutes, secs)
-        timeTextView.text = time
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        running = false
-        handler.removeCallbacksAndMessages(null)
-    }
-
-    private fun resetGame() {
-        resetTimer()
-        lossMessageTextView.visibility = View.GONE
-        firstClick = true
-        val gridLayout = findViewById<GridLayout>(R.id.gridLayout)
-        drawGrid(gridLayout, boardSize) // Vuelve a dibujar el tablero
-    }
-
 }
